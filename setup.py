@@ -18,7 +18,7 @@ with open(os.path.join(CWD, 'py_wifi_helper', '__init__.py'), 'r') as f:
 PYTHON_REQUIRES = ">=3.10"
 URL = "https://github.com/changyy/py-wifi-helper"
 DOWNLOAD_URL = "https://pypi.org/project/py-wifi-helper/"
-DESCRIPTION = 'WIFI Helper'
+DESCRIPTION = 'A cross-platform WiFi management tool for Windows, macOS, and Ubuntu'
 LONG_DESCRIPTION = DESCRIPTION
 LONG_DESCRIPTION_TYPE = 'text/plain'
 try:
@@ -29,7 +29,6 @@ try:
             LONG_DESCRIPTION_TYPE = 'text/markdown'
 except Exception as e:
     pass
-
 
 INSTALL_REQUIRES = ['pandas']
 try:
@@ -48,7 +47,7 @@ setup(
     long_description_content_type=LONG_DESCRIPTION_TYPE,
     packages=find_packages(),
     install_requires=INSTALL_REQUIRES,
-    keywords=['python', 'wifi', 'interface', 'macos', 'ubuntu'],
+    keywords=['python', 'wifi', 'interface', 'macos', 'ubuntu', 'windows', 'network', 'wireless'],
     python_requires=PYTHON_REQUIRES,
     url=URL,
     download_url=DOWNLOAD_URL,
@@ -58,7 +57,17 @@ setup(
         ],
     },
     classifiers= [
+        "Development Status :: 5 - Production/Stable",
+        "Environment :: Console",
+        "Intended Audience :: Developers",
+        "Intended Audience :: System Administrators",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
         "Operating System :: MacOS :: MacOS X",
+        "Operating System :: Microsoft :: Windows :: Windows 10",
+        "Operating System :: Microsoft :: Windows :: Windows 11",
+        "Operating System :: POSIX :: Linux",
+        "Topic :: System :: Networking",
+        "Topic :: Utilities",
     ]
 )

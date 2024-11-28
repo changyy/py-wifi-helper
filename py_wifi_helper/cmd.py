@@ -19,6 +19,7 @@ def main():
     obj = yy_wifi_helper.YYWIFIHelper()
 
     output = {}
+    output['platform'] = obj._platform
     output['version'] = __version__
     output['device'] = obj.getInterface()
     output['device']['select'] = args.device if args.device != None else output['device']['default']

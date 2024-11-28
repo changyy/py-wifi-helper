@@ -2,7 +2,9 @@
 
 import os
 import platform
+import json
 from enum import Enum
+from typing import Dict, List, Optional, Any, Tuple
 
 class WIFIAP_SECURITY(Enum):
     pass
@@ -18,7 +20,6 @@ class WIFIAP(str, Enum):
     CHANNEL_WIDTH = 'channel.width'
     RAW = 'raw'
 
-# https://developer.apple.com/documentation/corewlan/cwsecurity?language=objc
 class YYWIFISecurityMode(str, Enum):
     SecurityNone = 'SecurityNone'
     SecurityWEP = 'SecurityWEP'
@@ -39,30 +40,59 @@ class YYWIFISecurityMode(str, Enum):
 class YYOSWIFIHelper:
     def disableEventHandler(self):
         pass
+
     def enableEventHandler(self, handler: None, debug:bool = False ):
         pass
-    def getConnectedAPSSID(self, targetInterface: str | None = None) -> (bool, str | None, str | None):
+
+    def getConnectedAPSSID(self, targetInterface: str | None = None) -> Tuple[bool, Optional[str], Optional[str]]:
         pass
-    def getInterface(self):
+
+    def getInterface(self) -> Dict[str, Any]:
+        return {'default': None, 'list': [], 'error': None}
+
+    def disconnect(self, targetInterface:str | None = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> Tuple[bool, str]:
         pass
-    def disconnect(self, targetInterface:str | None = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> (bool, str):
+
+    def connectToAP(self, targetSSID:str , targetPassword: str | None = None, targetSecurity: YYWIFISecurityMode | None = None, findSSIDBeforeConnect:bool = False, targetInterface: str | None = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> Tuple[bool, str]:
         pass
-    def connectToAP(self, targetSSID:str , targetPassword: str | None = None, targetSecurity: YYWIFISecurityMode | None = None, findSSIDBeforeConnect:bool = False, targetInterface: str | None = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> (bool, str):
+
+    def scanToGetAPList(self, targetInterface:str | None = None) -> Dict[str, Any]:
         pass
-    def scanToGetAPList(self, targetInterface:str | None = None):
-        pass
-    def scanToGetAPListInJSON(self, targetInterface: str | None = None):
+
+    def scanToGetAPListInJSON(self, targetInterface: str | None = None) -> str:
         pass
 
 class YYWIFIHelper:
     def __init__(self):
+        # 初始化基本屬性
         self._platform = platform.system().lower()
-        self._supportPlatform = [ 'darwin' ] 
-        #if self._platform == 'linux' and os.path.isdir('/var/run/wpa_supplicant'):
-        #    # ubuntu: apt install wpasupplicant ; service wpa_supplicant start ; service wpa_supplicant status
-        #    self._supportPlatform.append('linux')
+        self._supportPlatform = ['darwin']
         self._platformInfo = {}
-        if self._platform == 'linux':
+        self._helper = None
+        self._support = False
+        self._missing_dependencies = []
+        self._init_error = None
+        self.eventHandler = None
+        
+        # Windows 平台支援
+        if self._platform == 'windows':
+            try:
+                print("Checking required modules...")
+                import comtypes
+                import pywifi
+                print("Initializing WiFi...")
+                test_wifi = pywifi.PyWiFi()
+                self._supportPlatform.append('windows')
+                self._support = True
+            except ImportError as e:
+                self._missing_dependencies.append(('dependency', str(e)))
+                print(f"[ERROR] Missing dependency: {str(e)}")
+            except Exception as e:
+                self._init_error = str(e)
+                print(f"[ERROR] Initialization error: {str(e)}")
+        
+        # Linux/Ubuntu 平台支援
+        elif self._platform == 'linux':
             if os.path.isfile('/etc/lsb-release'):
                 for line in open('/etc/lsb-release').read().split('\n'):
                     keyValue = line.split('=')
@@ -73,91 +103,132 @@ class YYWIFIHelper:
                 if self._platformInfo['distrib_id'] == 'ubuntu' and 'distrib_release' in self._platformInfo:
                     try:
                         if float(self._platformInfo['distrib_release']) >= 22.04:
-                            # Step 0 : TODO - Check resource
-                            # dkms, nmcli, wireless-tools, lsusb
                             from shutil import which
-
                             cliCheckPass = True
-                            cliList = [
-                                    'nmcli', 
-                                    #'lsusb', 'iwconfig',
-                                    #'wavemon',
-                                    #'iwlist',
-                            ]
+                            cliList = ['nmcli']
                             for cli in cliList:
-                                if which(cli) == None:
+                                if which(cli) is None:
                                     print(f"[INFO] cli not found: {cli}")
                                     cliCheckPass = False
     
-                            # Step 1 : Add
                             if cliCheckPass:
                                 self._supportPlatform.append('ubuntu')
                                 self._platform = 'ubuntu'
+                                self._support = True
                     except Exception as e:
-                        print(f"{str(e)}")
-    
-        self._support = self._platform in self._supportPlatform
+                        self._init_error = str(e)
+                        print(f"[ERROR] {str(e)}")
+        
+        # macOS 平台支援
+        elif self._platform == 'darwin':
+            try:
+                import objc
+                import CoreWLAN
+                self._support = True
+            except ImportError as e:
+                self._missing_dependencies.append(('CoreWLAN', str(e)))
+                print(f"[ERROR] {str(e)}")
+
+        # 初始化對應平台的 helper
         if self._support:
-            if self._platform == 'darwin':
-                from . import my_macos_helper
-                self._helper = my_macos_helper.YYMacOSWIFIHelper()
-            elif self._platform == 'ubuntu':
-                from . import my_ubuntu_helper
-                self._helper = my_ubuntu_helper.YYUbuntuWIFIHelper()
+            try:
+                if self._platform == 'darwin':
+                    from . import my_macos_helper
+                    self._helper = my_macos_helper.YYMacOSWIFIHelper()
+                elif self._platform == 'ubuntu':
+                    from . import my_ubuntu_helper
+                    self._helper = my_ubuntu_helper.YYUbuntuWIFIHelper()
+                elif self._platform == 'windows':
+                    from . import my_windows_helper
+                    print("Initializing Windows WiFi Helper...")
+                    self._helper = my_windows_helper.YYWindowsWIFIHelper()
+            except Exception as e:
+                self._support = False
+                self._init_error = f"Helper initialization failed: {str(e)}"
+                print(f"[ERROR] {self._init_error}")
 
-        self.eventHandler = None
-
-    def eventCallback(self, info: dict | None = None):
+    def eventCallback(self, info: Dict | None = None):
         if self.eventHandler and callable(self.eventHandler):
             self.eventHandler(info)
 
     def enableEventHandler(self, handlerFunc: None):
         if not self._support:
-            print(self._support)
+            print(f"Platform not supported: {self._platform}")
             return
         self.eventHandler = handlerFunc
-        self._helper.enableEventHandler(self)
+        if self._helper:
+            self._helper.enableEventHandler(self)
 
     def disableEventHandler(self):
         if not self._support:
-            print(self._support)
+            print(f"Platform not supported: {self._platform}")
             return
-        self._helper.disableEventHandler(self)
+        if self._helper:
+            self._helper.disableEventHandler()
         self.eventHandler = None
 
-    def getInterface(self):
+    def getInterface(self) -> Dict[str, Any]:
         if not self._support:
-            print(self._support)
-            return
+            error_msg = []
+            if self._init_error:
+                error_msg.append(self._init_error)
+            if self._missing_dependencies:
+                for dep, err in self._missing_dependencies:
+                    error_msg.append(f"Missing {dep}: {err}")
+            if not error_msg:
+                error_msg.append(f"Platform {self._platform} not supported")
+                
+            return {
+                'default': None,
+                'list': [],
+                'error': error_msg
+            }
+        
+        if not self._helper:
+            return {
+                'default': None,
+                'list': [],
+                'error': ['Helper not initialized']
+            }
+            
         return self._helper.getInterface()
 
-    def getAPList(self, name=None):
+    def getAPList(self, name: Optional[str] = None) -> Dict[str, Any]:
         if not self._support:
-            print(self._support)
-            return
+            print(f"Platform not supported: {self._platform}")
+            return {'status': False, 'list': [], 'error': ['Platform not supported']}
+        if not self._helper:
+            return {'status': False, 'list': [], 'error': ['Helper not initialized']}
         return self._helper.scanToGetAPList(name)
 
-    def getAPListInJSON(self, name=None):
+    def getAPListInJSON(self, name: Optional[str] = None) -> str:
         if not self._support:
-            print(self._support)
-            return
+            print(f"Platform not supported: {self._platform}")
+            return json.dumps({'status': False, 'list': [], 'error': ['Platform not supported']})
+        if not self._helper:
+            return json.dumps({'status': False, 'list': [], 'error': ['Helper not initialized']})
         return self._helper.scanToGetAPListInJSON(name)
 
-    def getConnectedAPSSID(self, targetInterface: str | None = None) -> (bool, str | None, str | None):
+    def getConnectedAPSSID(self, targetInterface: Optional[str] = None) -> Tuple[bool, Optional[str]]:
         if not self._support:
-            print(self._support)
-            return (False, None, 'NOT SUPPORT')
+            print(f"Platform not supported: {self._platform}")
+            return (False, None, 'Platform not supported')
+        if not self._helper:
+            return (False, None, 'Helper not initialized')
         return self._helper.getConnectedAPSSID(targetInterface)
 
-    def disconnect(self, targetInterface:str | None = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> (bool, str):
+    def disconnect(self, targetInterface: Optional[str] = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> Tuple[bool, str]:
         if not self._support:
-            print(self._support)
-            return (False, None, 'NOT SUPPORT')
+            print(f"Platform not supported: {self._platform}")
+            return (False, 'Platform not supported')
+        if not self._helper:
+            return (False, 'Helper not initialized')
         return self._helper.disconnect(targetInterface, asyncMode, asyncWaitTimeout)
 
-    def connectToAP(self, targetSSID:str , targetPassword: str | None = None, targetSecurity: str | None = None, findSSIDBeforeConnect:bool = False, targetInterface: str | None = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> (bool, str):
+    def connectToAP(self, targetSSID: str, targetPassword: Optional[str] = None, targetSecurity: Optional[str] = None, findSSIDBeforeConnect: bool = False, targetInterface: Optional[str] = None, asyncMode: bool = False, asyncWaitTimeout: int = 15) -> Tuple[bool, str]:
         if not self._support:
-            print(self._support)
-            return
+            print(f"Platform not supported: {self._platform}")
+            return (False, 'Platform not supported')
+        if not self._helper:
+            return (False, 'Helper not initialized')
         return self._helper.connectToAP(targetSSID, targetPassword, targetSecurity, findSSIDBeforeConnect, targetInterface, asyncMode, asyncWaitTimeout)
-

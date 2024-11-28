@@ -1,6 +1,26 @@
 # py-wifi-helper
 
-This is a Python tool/library developed for macOS 13.5 and Ubuntu 22.04, primarily providing operations for wireless interfaces. It includes functionalities such as listing available wireless interfaces, scanning for WiFi signals using a specified wireless interface, connecting a chosen wireless interface to a specific WiFi access point, retrieving information about the connected WiFi access points for the specified wireless interface, and disconnecting the specified wireless interface.
+This is a Python tool/library developed for macOS 13.5, Ubuntu 22.04, and Windows 10/11, primarily providing operations for wireless interfaces. It includes functionalities such as listing available wireless interfaces, scanning for WiFi signals using a specified wireless interface, connecting a chosen wireless interface to a specific WiFi access point, retrieving information about the connected WiFi access points for the specified wireless interface, and disconnecting the specified wireless interface.
+
+# Installation
+
+## Dependencies
+
+### Windows
+```bash
+pip install pywifi comtypes
+```
+
+### macOS
+```bash
+pip install "pyobjc-core>=9.2" "pyobjc-framework-Cocoa>=9.2" "pyobjc-framework-CoreWLAN>=9.2"
+```
+
+### Ubuntu
+Requires `nmcli` to be installed:
+```bash
+sudo apt-get install network-manager
+```
 
 # Usage
 
@@ -15,6 +35,39 @@ options:
   --device DEVICE       interface
   --ssid SSID           ssid
   --password PASSWORD   password
+```
+
+## Windows
+
+```powershell
+> py-wifi-helper
+{
+    "version": "1.0.0",
+    "device": {
+        "default": "Intel(R) Wi-Fi 6 AX201 160MHz",
+        "list": [
+            "Intel(R) Wi-Fi 6 AX201 160MHz"
+        ],
+        "error": null,
+        "select": "Intel(R) Wi-Fi 6 AX201 160MHz"
+    },
+    "connection": {
+        "default": {
+            "ssid": "MyWiFi",
+            "log": null
+        },
+        "Intel(R) Wi-Fi 6 AX201 160MHz": {
+            "ssid": "MyWiFi",
+            "log": null
+        }
+    },
+    "action": {
+        "name": "device",
+        "status": true,
+        "error": null,
+        "log": null
+    }
+}
 ```
 
 ## Ubuntu
@@ -95,152 +148,36 @@ BuildVersion:		22G74
 }
 ```
 
+### Examples
 
-### macos - Scan
-
-```
-% py-wifi-helper --action scan
-{
-    "version": "1.0.0",
-    "device": {
-        "default": "en0",
-        "list": [
-            "en0"
-        ],
-        "error": null,
-        "select": "en0"
-    },
-    "connection": {
-        "default": {
-            "ssid": "MyHomeWIFIAP",
-            "log": null
-        },
-        "en0": {
-            "ssid": "MyHomeWIFIAP",
-            "log": null
-        }
-    },
-    "action": {
-        "name": "scan",
-        "status": true,
-        "error": null,
-        "log": null
-    },
-    "ssid": [
-        "SSID01",
-        "SSID02",
-        "SSID03",
-        "SSID04",
-        "SSID05",
-        "SSID06",
-        "SSID07",
-        "SSID08"
-    ]
-}
+#### Scan for WiFi Networks
+```bash
+py-wifi-helper --action scan
 ```
 
-### macOS - Scan with DeviceID `xxxx` (not found):
-
-```
-% py-wifi-helper --action scan --device xxxx
-{
-    "version": "1.0.0",
-    "device": {
-        "default": "en0",
-        "list": [
-            "en0"
-        ],
-        "error": null,
-        "select": "xxxx"
-    },
-    "connection": {
-        "default": {
-            "ssid": null,
-            "log": null
-        },
-        "en0": {
-            "ssid": "MyHomeWIFIAP",
-            "log": null
-        }
-    },
-    "action": {
-        "name": "scan",
-        "status": false,
-        "error": [
-            "interface not found: xxxx, current: ['en0']"
-        ],
-        "log": null
-    },
-    "ssid": []
-}
+#### Connect to WiFi
+```bash
+py-wifi-helper --action connect --ssid "MyWiFi" --password "12345678"
 ```
 
----
-
-### macOS - disconnect
-
-```
-% py-wifi-helper --action disconnect --device en0
-{
-    "version": "1.0.0",
-    "device": {
-        "default": "en0",
-        "list": [
-            "en0"
-        ],
-        "error": null,
-        "select": "en0"
-    },
-    "connection": {
-        "default": {
-            "ssid": null,
-            "log": null
-        },
-        "en0": {
-            "ssid": null,
-            "log": null
-        }
-    },
-    "action": {
-        "name": "disconnect",
-        "status": true,
-        "error": null,
-        "log": null
-    }
-}
+#### Disconnect from WiFi
+```bash
+py-wifi-helper --action disconnect
 ```
 
----
-
-### macOS - Connect
-
+#### Use Specific Interface
+```bash
+py-wifi-helper --action scan --device "wlan0"
 ```
-% py-wifi-helper --action connect --device en0 --ssid MyHomeWIFIAP --password 12345678
-{
-    "version": "1.0.0",
-    "device": {
-        "default": "en0",
-        "list": [
-            "en0"
-        ],
-        "error": null,
-        "select": "en0"
-    },
-    "connection": {
-        "default": {
-            "ssid": "MyHomeWIFIAP",
-            "log": null
-        },
-        "en0": {
-            "ssid": "MyHomeWIFIAP",
-            "log": null
-        }
-    },
-    "action": {
-        "name": "connect",
-        "status": true,
-        "error": null,
-        "log": null
-    }
-}
-```
+
+# Notes
+
+- Windows requires administrator privileges for some operations
+- Ubuntu requires sudo for network operations
+- macOS might request permissions for network access on first use
+
+# Platform Support
+
+- Windows 10/11 (via pywifi)
+- macOS 13.5+ (via CoreWLAN)
+- Ubuntu 22.04+ (via nmcli)
