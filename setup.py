@@ -33,9 +33,11 @@ except Exception as e:
 INSTALL_REQUIRES = ['pandas']
 try:
     with open(os.path.join(CWD, "requirements.txt"), 'r') as f:
-        INSTALL_REQUIRES = [s.strip() for s in f.read().split("\n")]
+        requirements = [s.strip() for s in f.read().split("\n") if s.strip()]
+        if requirements:  # 只有在成功讀取到內容時才更新
+            INSTALL_REQUIRES = requirements
 except Exception as e:
-    pass
+    print(f"Warning: Could not read requirements.txt: {e}")  # 加入錯誤提示
 
 setup(
     name="py-wifi-helper", 
