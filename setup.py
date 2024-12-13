@@ -54,6 +54,9 @@ setup(
     entry_points={
         'console_scripts': [
             'py-wifi-helper = py_wifi_helper.cmd:main',
+            'wifi-helper = py_wifi_helper.cmd:main',
+            'py-wifi-helper-macos-setup=py_wifi_helper.cli_permission:main',
+            'wifi-helper-macos-setup=py_wifi_helper.cli_permission:main',
         ],
     },
     classifiers= [

@@ -7,14 +7,21 @@ import json
 
 from py_wifi_helper import __version__
 from py_wifi_helper import yy_wifi_helper
+from .config import WiFiScannerConfig
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--action", choices=['device', 'scan', 'connect', 'disconnect'], default='device', help="command action")
+    parser.add_argument("--action", choices=['device', 'scan', 'connect', 'disconnect'], 
+                       default='device', help="command action")
     parser.add_argument("--device", type=str, default=None, help="interface")
     parser.add_argument("--ssid", type=str, help="ssid")
     parser.add_argument("--password", type=str, help="password")
+    parser.add_argument("--scanner-path", type=str, help="Path to WiFiScanner.app (macOS only)")
     args = parser.parse_args()
+
+    if args.scanner_path and sys.platform == 'darwin':
+        config = WiFiScannerConfig()
+        config.scanner_app_path = args.scanner_path
 
     obj = yy_wifi_helper.YYWIFIHelper()
 

@@ -26,15 +26,17 @@ sudo apt-get install network-manager
 
 ```
 % py-wifi-helper --help
-usage: py-wifi-helper [-h] [--action {device,scan,connect,disconnect}] [--device DEVICE] [--ssid SSID] [--password PASSWORD]
+usage: py-wifi-helper [-h] [--action {device,scan,connect,disconnect}] [--device DEVICE] [--ssid SSID] [--password PASSWORD] [--scanner-path SCANNER_PATH]
 
 options:
   -h, --help            show this help message and exit
   --action {device,scan,connect,disconnect}
                         command action
   --device DEVICE       interface
-  --ssid SSID           ssid
+  --ssid SSID          ssid
   --password PASSWORD   password
+  --scanner-path SCANNER_PATH
+                        Path to WiFiScanner.app (macOS only)
 ```
 
 ## Windows
@@ -112,6 +114,23 @@ $ sudo py-wifi-helper
 
 ## macOS
 
+### Setup Location Services Permission
+Starting from macOS 15+, scanning WiFi networks requires Location Services permission. You need to set up WiFiScanner.app first:
+
+```bash
+# Default setup (creates WiFiScanner.app in current directory)
+py-wifi-helper-macos-setup
+
+# Or specify a custom location
+py-wifi-helper-macos-setup --target-path ~/Applications/WiFiScanner.app
+```
+
+After setup, you'll need to:
+1. Allow Location Services access when prompted
+2. Or manually enable Location Services for WiFiScanner in System Settings > Privacy & Security > Location Services
+
+### Basic Usage
+
 ```
 % sw_vers
 ProductName:		macOS
@@ -148,6 +167,15 @@ BuildVersion:		22G74
 }
 ```
 
+For scanning operations, you can either use the default WiFiScanner.app location or specify a custom path:
+```bash
+# Use default WiFiScanner.app location
+py-wifi-helper --action scan
+
+# Use custom WiFiScanner.app location
+py-wifi-helper --action scan --scanner-path ~/Applications/WiFiScanner.app
+```
+
 ### Examples
 
 #### Scan for WiFi Networks
@@ -174,7 +202,7 @@ py-wifi-helper --action scan --device "wlan0"
 
 - Windows requires administrator privileges for some operations
 - Ubuntu requires sudo for network operations
-- macOS might request permissions for network access on first use
+- macOS requires Location Services permission for WiFi scanning (set up using `py-wifi-helper-macos-setup`)
 
 # Platform Support
 

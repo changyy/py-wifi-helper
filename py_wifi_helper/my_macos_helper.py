@@ -3,12 +3,16 @@
 import time
 import platform
 import json
+import logging
+import subprocess
 
 # https://pyobjc.readthedocs.io/en/latest/notes/framework-wrappers.html
 import objc
 import CoreWLAN
 
 from . import yy_wifi_helper
+from .macos_wifi_permission_helper import MacOSWiFiPermissionHelper
+from .config import WiFiScannerConfig
 
 # https://github.com/ronaldoussoren/pyobjc/tree/master/pyobjc-framework-CoreWLAN
 # https://developer.apple.com/documentation/corewlan/cweventdelegate?language=objc
@@ -106,6 +110,8 @@ class YYMacOSWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
         self.client = CoreWLAN.CWWiFiClient.alloc().init()
         #print(CoreWLAN.CWWiFiClient.interfaceNames())
         self.systemEventHandler = None
+        self._permission_helper = None
+        self._config = WiFiScannerConfig()
 
     def __del__(self):
         self.disableEventHandler()
@@ -114,6 +120,26 @@ class YYMacOSWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
         if self.systemEventHandler != None:
             self.systemEventHandler.removeCallback()
         self.systemEventHandler = None
+
+    def _format_error_message(self, error_str):
+        """格式化錯誤訊息並提供幫助提示"""
+        if "Command" in error_str and "returned non-zero exit status" in error_str:
+            return [
+                "WiFiScanner.app not found or not properly set up.",
+                "Please run 'py-wifi-helper-macos-setup' to set up WiFi scanning permissions.",
+                "You can also specify a custom location with:",
+                "1. py-wifi-helper-macos-setup --target-path /path/to/your/WiFiScanner.app",
+                "2. py-wifi-helper --action scan --scanner-path /path/to/your/WiFiScanner.app"
+            ]
+        return [error_str]
+
+    @property
+    def permission_helper(self):
+        if self._permission_helper is None:
+            self._permission_helper = MacOSWiFiPermissionHelper(
+                app_path=self._config.scanner_app_path
+            )
+        return self._permission_helper
 
     def disableEventHandler(self):
         if self.systemEventHandler == None:
@@ -323,6 +349,70 @@ class YYMacOSWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
 
     def scanToGetAPList(self, targetInterface:str | None = None):
         output = { 'status': False, 'list': [] , 'error': None }
+        
+        # 確保 WiFiScanner.app 存在
+        if not self.permission_helper.ensure_scanner_app():
+            if output['error'] is None:
+                output['error'] = []
+            error_msg = [
+                "WiFiScanner.app not found.",
+                "Please run one of the following commands:",
+                "1. py-wifi-helper-macos-setup",
+                "2. py-wifi-helper-macos-setup --target-path /your/preferred/location/WiFiScanner.app"
+            ]
+            output['error'].extend(error_msg)
+            return output
+
+        # 使用 wifiscan CLI 工具
+        try:
+            cli_path = self._permission_helper.cli_path
+            result = subprocess.run(
+                [str(cli_path), '--json'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            try:
+                data = json.loads(result.stdout)
+                if 'networks' in data and data['networks']:
+                    output['status'] = True
+                    for network in data['networks']:
+                        network_info = {
+                            yy_wifi_helper.WIFIAP.SSID: network['ssid'],
+                            yy_wifi_helper.WIFIAP.RSSI: network['signal_strength'],
+                            yy_wifi_helper.WIFIAP.SECURITY: network['security'],
+                            yy_wifi_helper.WIFIAP.CHANNEL_NUMBER: network['channel'],
+                        }
+                        output['list'].append(network_info)
+                else:
+                    if output['error'] is None:
+                        output['error'] = []
+                    output['error'].extend([
+                        "Location Services permission required for WiFi scanning.",
+                        "Please run 'py-wifi-helper-macos-setup' to set up permissions.",
+                        "Or specify a custom scanner location with:",
+                        "py-wifi-helper --action scan --scanner-path /path/to/WiFiScanner.app"
+                    ])
+            except json.JSONDecodeError as e:
+                if output['error'] is None:
+                    output['error'] = []
+                output['error'].append(f"Failed to parse scan results: {str(e)}")
+                
+        except subprocess.CalledProcessError as e:
+            if output['error'] is None:
+                output['error'] = []
+            output['error'].append(f"Scan failed: {str(e)}")
+            output['error'].extend(self._format_error_message(f"Scan failed: {str(e)}"))
+        except Exception as e:
+            if output['error'] is None:
+                output['error'] = []
+            output['error'].extend(self._format_error_message(f"Unexpected error: {str(e)}"))
+        
+        return output
+
+    def scanToGetAPListOld(self, targetInterface:str | None = None):
+        output = { 'status': False, 'list': [] , 'error': None }
         target = None
         try:
             currentInterface = self.getInterface()
@@ -354,6 +444,7 @@ class YYMacOSWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
         if target == None:
             return output
 
+        checkScanForNetworksStatus = True
         try:
             ssid, err = target.scanForNetworksWithName_error_(None, None)
             if err == None:
@@ -374,6 +465,7 @@ class YYMacOSWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
                         try:
                             itemOutput[yy_wifi_helper.WIFIAP.SECURITY] = item.security()
                         except Exception as e:
+                            checkScanForNetworksStatus = False
                             errorMessage = f"item.security(): {str(e)}"
                             if output['error'] is None:
                                 output['error'] = [errorMessage]
@@ -385,6 +477,7 @@ class YYMacOSWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
                             itemOutput[yy_wifi_helper.WIFIAP.CHANNEL_NUMBER] = item.wlanChannel().channelNumber()
                             itemOutput[yy_wifi_helper.WIFIAP.CHANNEL_WIDTH] = item.wlanChannel().channelWidth()
                         except Exception as e:
+                            checkScanForNetworksStatus = False
                             errorMessage = f"item.wlanChannel()->channelBand(),channelNumber(),channelWidth(): {str(e)}"
                             if output['error'] is None:
                                 output['error'] = [errorMessage]
@@ -394,24 +487,48 @@ class YYMacOSWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
                         itemOutput['object'] = item
                         output['list'].append(itemOutput)
                     except Exception as e:
+                        checkScanForNetworksStatus = False
                         errorMessage = f"item->ssid(), bssid(), rssiValue(), ibss(): {str(e)}"
                         if output['error'] is None:
                             output['error'] = [errorMessage]
                         else:
                             output['error'].append(errorMessage) 
             else:
+                checkScanForNetworksStatus = False
                 errorMessage = f"scanForNetworksWithName_error_: {str(err)}"
                 if output['error'] is None:
                     output['error'] = [errorMessage]
                 else:
                     output['error'].append(errorMessage) 
         except Exception as e:
+            checkScanForNetworksStatus = False
             errorMessage = f"item->ssid(), bssid(), rssiValue(), ibss(): {str(e)}"
             if output['error'] is None:
                 output['error'] = [errorMessage]
             else:
                 output['error'].append(errorMessage) 
 
+        if checkScanForNetworksStatus == False:
+            try:
+                if not self.permission_helper.check_permissions():
+                    self.permission_helper.ensure_scanner_app()
+                    self.permission_helper.request_permissions()
+                scan_result = self.permission_helper.scan_wifi()
+                if scan_result and 'networks' in scan_result:
+                    output['status'] = True
+                    for network in scan_result['networks']:
+                        network_info = {
+                            yy_wifi_helper.WIFIAP.SSID: network['ssid'],
+                            yy_wifi_helper.WIFIAP.RSSI: network['signal_strength'],
+                            yy_wifi_helper.WIFIAP.SECURITY: network['security'],
+                            yy_wifi_helper.WIFIAP.CHANNEL_NUMBER: network['channel'],
+                        }
+                        output['list'].append(network_info)
+            except Exception as e:
+                if output['error'] is None:
+                    output['error'] = []
+                output['error'].append(f"WiFiScanner.app scan failed: {str(e)}")
+    
         return output
 
     def getInterface(self):
