@@ -1,5 +1,8 @@
 # py-wifi-helper
 
+[![PyPI version](https://img.shields.io/pypi/v/py-wifi-helper.svg)](https://pypi.org/project/py-wifi-helper)
+[![PyPI Downloads](https://static.pepy.tech/badge/py-wifi-helper)](https://pepy.tech/projects/py-wifi-helper)
+
 This is a Python tool/library developed for macOS 13.5, Ubuntu 22.04, and Windows 10/11, primarily providing operations for wireless interfaces. It includes functionalities such as listing available wireless interfaces, scanning for WiFi signals using a specified wireless interface, connecting a chosen wireless interface to a specific WiFi access point, retrieving information about the connected WiFi access points for the specified wireless interface, and disconnecting the specified wireless interface.
 
 # Installation
