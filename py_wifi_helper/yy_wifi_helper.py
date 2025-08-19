@@ -63,7 +63,7 @@ class YYOSWIFIHelper:
         pass
 
 class YYWIFIHelper:
-    def __init__(self):
+    def __init__(self, use_v1=None):
         # 初始化基本屬性
         self._platform = platform.system().lower()
         self._supportPlatform = ['darwin']
@@ -73,6 +73,7 @@ class YYWIFIHelper:
         self._missing_dependencies = []
         self._init_error = None
         self.eventHandler = None
+        self._use_v1 = use_v1  # macOS 版本選擇參數
         
         # Windows 平台支援
         if self._platform == 'windows':
@@ -134,7 +135,7 @@ class YYWIFIHelper:
             try:
                 if self._platform == 'darwin':
                     from . import my_macos_helper
-                    self._helper = my_macos_helper.YYMacOSWIFIHelper()
+                    self._helper = my_macos_helper.create_macos_helper(use_v1=self._use_v1)
                 elif self._platform == 'ubuntu':
                     from . import my_ubuntu_helper
                     self._helper = my_ubuntu_helper.YYUbuntuWIFIHelper()
