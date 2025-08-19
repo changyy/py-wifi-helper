@@ -242,21 +242,36 @@ class YYWindowsWIFIHelper(yy_wifi_helper.YYOSWIFIHelper):
             
             for result in results:
                 try:
+                    # 安全地獲取安全類型
+                    security_type = None
+                    if hasattr(result, 'akm') and result.akm:
+                        security_type = str(result.akm[0])
+                    
+                    # 安全地獲取加密類型
+                    cipher_type = None
+                    if hasattr(result, 'cipher') and result.cipher:
+                        cipher_type = str(result.cipher)
+                    
+                    # 安全地獲取 AKM 列表
+                    akm_list = []
+                    if hasattr(result, 'akm') and result.akm:
+                        akm_list = [str(x) for x in result.akm]
+                    
                     itemOutput = {
                         yy_wifi_helper.WIFIAP.SSID: result.ssid,
                         yy_wifi_helper.WIFIAP.BSSID: result.bssid,
                         yy_wifi_helper.WIFIAP.RSSI: result.signal,
                         yy_wifi_helper.WIFIAP.IBSS: None,
-                        yy_wifi_helper.WIFIAP.SECURITY: str(result.akm[0]) if result.akm else None,
+                        yy_wifi_helper.WIFIAP.SECURITY: security_type,
                         yy_wifi_helper.WIFIAP.CHANNEL_BAND: None,
                         yy_wifi_helper.WIFIAP.CHANNEL_NUMBER: result.freq,
                         yy_wifi_helper.WIFIAP.CHANNEL_WIDTH: None,
                         yy_wifi_helper.WIFIAP.RAW: {
                             'signal': result.signal,
-                            'quality': result.quality,
                             'frequency': result.freq,
-                            'akm': [str(x) for x in result.akm] if result.akm else [],
-                            'cipher': str(result.cipher) if result.cipher else None,
+                            'akm': akm_list,
+                            'cipher': cipher_type,
+                            # 移除了 'quality' 因為 Profile 物件沒有這個屬性
                         }
                     }
                     output['list'].append(itemOutput)
