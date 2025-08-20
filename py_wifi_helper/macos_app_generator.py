@@ -20,9 +20,20 @@ def check_dependencies(quiet=False):
         print("Checking and installing required packages...")
         
     try:
+        # 檢查 Python 版本
+        python_version = sys.version_info
+        
+        # 準備 pip 安裝命令
+        pip_command = [sys.executable, '-m', 'pip', 'install']
+        
+        # 如果是 Python 3.13 或更高版本，添加 --break-system-packages
+        if python_version >= (3, 13):
+            pip_command.append('--break-system-packages')
         for package in required_packages:
+            # 將套件名稱加入命令列
+            install_command = pip_command + [package]
             subprocess.check_call(
-                [sys.executable, '-m', 'pip', 'install', package],
+                install_command,
                 stdout=subprocess.PIPE if quiet else None,
                 stderr=subprocess.PIPE if quiet else None
             )

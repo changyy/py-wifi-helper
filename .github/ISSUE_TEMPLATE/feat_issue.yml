@@ -1,0 +1,34 @@
+name: feat issue
+description: File a feature request
+title: "[Feat] Feature Issue:"
+labels: ["feat"]
+projects: ["changyy/py-wifi-helper"]
+assignees:
+  - changyy
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this feature issue!
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What demand/feature do you want?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us your idea!
+      value: "A demand/feature issue!"
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: Relevant technical or implementation references
+      description: Please copy and paste any relevant technical or implementation references. This will be automatically formatted into code, so no need for backticks.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com).
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
